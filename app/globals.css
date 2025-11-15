@@ -1,9 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --bg-primary: #131316;
+  --primary: #131316;
+  --disabled: #51525c;
+  --placeholder: #1a1a1e;
+  --active: #875bf7;
+  --font-inter: 'Inter', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
 }
 
 @theme inline {
@@ -21,7 +27,7 @@
 }
 
 body {
-  background: var(--background);
+  background: var(--primary);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
