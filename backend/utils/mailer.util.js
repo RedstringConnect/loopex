@@ -1,5 +1,5 @@
 const transporter = require('../config/mailer.config');
-const { getMagicLinkEmailTemplate } = require('./emailTemplates.util');
+const { getMagicLinkEmailTemplate, getOTPEmailTemplate } = require('./emailTemplates.util');
 
 /**
  * Send magic link email
@@ -28,6 +28,34 @@ const sendMagicLinkEmail = async (email, magicLink) => {
     }
 };
 
+/**
+ * Send OTP email
+ * @param {string} email - Recipient email
+ * @param {string} otp - OTP code
+ * @returns {Promise}
+ */
+const sendOTPEmail = async (email, otp) => {
+    try {
+        const mailOptions = {
+            from: {
+                name: process.env.FROM_NAME || 'Loopx Team',
+                address: process.env.FROM_EMAIL || process.env.SMTP_USER,
+            },
+            to: email,
+            subject: 'Your verification code - Loopx',
+            html: getOTPEmailTemplate(email, otp),
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('OTP email sent successfully:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('OTP email sending failed:', error);
+        throw new Error('Failed to send OTP email');
+    }
+};
+
 module.exports = {
     sendMagicLinkEmail,
+    sendOTPEmail,
 };

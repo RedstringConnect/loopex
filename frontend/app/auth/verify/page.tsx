@@ -1,124 +1,283 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { Button } from '@/components/ui/button'
+import { Loader } from 'lucide-react'
 
 export default function VerifyEmail() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ''
-  const token = searchParams.get('token') || ''
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [verifying, setVerifying] = useState(false)
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'success' | 'error'>('pending')
   const [errorMessage, setErrorMessage] = useState('')
+  const [resending, setResending] = useState(false)
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
-    // If token is present in URL, verify it
-    if (token) {
-      verifyToken(token)
+    // Focus first input on mount
+    if (inputRefs.current[0]) {
+      inputRefs.current[0].focus()
     }
-  }, [token])
+  }, [])
 
-  const verifyToken = async (tokenToVerify: string) => {
+  const handleOtpChange = (index: number, value: string) => {
+    // Only allow digits
+    if (value && !/^\d$/.test(value)) return
+
+    const newOtp = [...otp]
+    newOtp[index] = value
+    setOtp(newOtp)
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus()
+    }
+
+    // Auto-submit when all digits are entered
+    if (value && index === 5 && newOtp.every(digit => digit !== '')) {
+      verifyOTP(newOtp.join(''))
+    }
+  }
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text').slice(0, 6)
+    if (!/^\d+$/.test(pastedData)) return
+
+    const newOtp = [...otp]
+    pastedData.split('').forEach((char, index) => {
+      if (index < 6) {
+        newOtp[index] = char
+      }
+    })
+    setOtp(newOtp)
+
+    // Focus last filled input
+    const lastIndex = Math.min(pastedData.length, 5)
+    inputRefs.current[lastIndex]?.focus()
+
+    // Auto-submit if complete
+    if (newOtp.every(digit => digit !== '')) {
+      verifyOTP(newOtp.join(''))
+    }
+  }
+
+  const verifyOTP = async (otpCode: string) => {
     setVerifying(true)
+    setErrorMessage('')
+    
     try {
-      const response = await fetch('http://localhost:5000/api/auth/verify-magic-link', {
+      const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token: tokenToVerify }),
+        body: JSON.stringify({ email, otp: otpCode }),
       })
 
       const data = await response.json()
 
       if (data.success) {
         setVerificationStatus('success')
-        // Redirect to dashboard or home after 2 seconds
+        // Store token and user data
+        localStorage.setItem('authToken', data.token)
+        if (data.user) {
+          localStorage.setItem('userId', data.user.userId)
+          localStorage.setItem('userEmail', data.user.email)
+        }
+        // Redirect to onboarding if not completed, otherwise dashboard
         setTimeout(() => {
-          router.push('/')
+          if (data.user && data.user.onboardingCompleted) {
+            router.push('/dashboard')
+          } else {
+            router.push('/onboarding')
+          }
         }, 2000)
       } else {
-        setVerificationStatus('error')
-        setErrorMessage(data.message || 'Verification failed')
+        setErrorMessage(data.message || 'Invalid verification code')
+        // Clear OTP inputs
+        setOtp(['', '', '', '', '', ''])
+        inputRefs.current[0]?.focus()
       }
     } catch (error) {
-      console.error('Error verifying token:', error)
-      setVerificationStatus('error')
-      setErrorMessage('Failed to verify email. Please try again.')
+      console.error('Error verifying OTP:', error)
+      setErrorMessage('Failed to verify code. Please try again.')
+      setOtp(['', '', '', '', '', ''])
+      inputRefs.current[0]?.focus()
     } finally {
       setVerifying(false)
     }
   }
 
+  const handleResendOTP = async () => {
+    setResending(true)
+    setErrorMessage('')
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/resend-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setVerificationStatus('pending')
+        setOtp(['', '', '', '', '', ''])
+        inputRefs.current[0]?.focus()
+      } else {
+        setErrorMessage(data.message || 'Failed to resend code')
+      }
+    } catch (error) {
+      console.error('Error resending OTP:', error)
+      setErrorMessage('Failed to resend code. Please try again.')
+    } finally {
+      setResending(false)
+    }
+  }
+
+  const handleVerify = () => {
+    const otpCode = otp.join('')
+    if (otpCode.length === 6) {
+      verifyOTP(otpCode)
+    }
+  }
+
+  const isOtpComplete = otp.every(digit => digit !== '')
+
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--primary)' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: '#131316' }}>
  
-      <div className="w-1/2 px-8 pt-4 flex flex-col justify-between relative ">
+      <div className="w-1/2 px-16 pt-8 flex flex-col relative">
 
-        <div className="text-white text-4xl font-normal" style={{ fontFamily: 'var(--font-playfair)' }}>Loopx</div>
+        <div className="text-white mb-32" style={{ fontFamily: 'var(--font-heading)', fontSize: '32px', fontWeight: '400' }}>Loopx</div>
         
-   
-        <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: 'none' }}>
-          <div className="max-w-md flex flex-col gap-4" style={{ pointerEvents: 'auto' }}>
+        <div className="flex flex-col mx-auto" style={{ maxWidth: '360px' }}>
+          <h1 className="mb-2" style={{ alignSelf: 'stretch', color: 'var(--Text-Primary, #FFF)', fontFamily: 'var(--Font-family-font-family-display, "Denton Test")', fontSize: 'var(--Font-size-display-xs, 24px)', fontStyle: 'normal', fontWeight: '500', lineHeight: 'var(--Line-height-display-xs, 32px)' }}>
+            {verificationStatus === 'success' 
+              ? 'Email Verified!' 
+              : 'Verification code sent'}
+          </h1>
+          
+          <p className="mb-[32px]" style={{ color: 'var(--Text-Tertiary, #A0A0AB)', fontFeatureSettings: "'case' on, 'cv01' on, 'cv08' on, 'cv09' on, 'cv11' on, 'cv13' on", fontFamily: 'var(--font-body)', fontSize: 'var(--Font-size-text-sm, 14px)', fontStyle: 'normal', fontWeight: '400', lineHeight: 'var(--Line-height-text-sm, 20px)' }}>
+            {verificationStatus === 'success' ? (
+              <>
+                Your email has been verified successfully. Redirecting you to the dashboard...
+              </>
+            ) : (
+              <>
+                Check Your Email for the OTP <button
+                  onClick={handleResendOTP}
+                  disabled={resending}
+                  style={{ color: '#875BF7', fontFamily: 'var(--font-body)', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  {resending ? 'Resending...' : 'Resend Code →'}
+                </button>
+              </>
+            )}
+          </p>
 
-            <div className="mb-4">
-              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-6">
-                {verificationStatus === 'success' ? (
-                  <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : verificationStatus === 'error' ? (
-                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                )}
+          {verificationStatus === 'pending' && (
+            <>
+              <div className="mb-[24px] flex gap-3">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => { inputRefs.current[index] = el }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    onPaste={index === 0 ? handlePaste : undefined}
+                    placeholder="-"
+                    className="focus:outline-none"
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '12px',
+                      border: errorMessage ? '1px solid #E88997' : (digit ? '1px solid #875BF7' : '1px solid #26272B'),
+                      background: '#1A1A1E',
+                      boxShadow: digit ? 'none' : '0 1px 2px 0 rgba(10, 13, 18, 0.05)',
+                      color: '#FFFFFF',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '24px',
+                      fontWeight: '500',
+                      textAlign: 'center',
+                      transition: 'border-color 0.2s ease'
+                    }}
+                    disabled={verifying}
+                  />
+                ))}
               </div>
 
-              <h1 className="text-white text-3xl font-bold mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
-                {verificationStatus === 'success' 
-                  ? 'Email Verified!' 
-                  : verificationStatus === 'error'
-                  ? 'Verification Failed'
-                  : "Let's verify your email"}
-              </h1>
-              
-              <p className="text-gray-400 text-sm mb-2">
-                {verificationStatus === 'success' ? (
-                  <>
-                    Your email has been verified successfully. Redirecting you to the dashboard...
-                  </>
-                ) : verificationStatus === 'error' ? (
-                  <>
-                    <span className="text-red-400">{errorMessage}</span>
-                  </>
-                ) : (
-                  <>
-                    Check <span className="text-white font-medium">{email}</span> to verify your account and get started.
-                  </>
-                )}
-              </p>
-            </div>
-          
-            <p className="text-gray-500 text-sm">
-              Need help? <span className="cursor-pointer" style={{ color: 'var(--active)' }}>Contact support</span>
-            </p>
-          </div>
+              {errorMessage && (
+                <p className="mb-4" style={{ color: '#E88997', fontFamily: 'var(--font-body)', fontSize: '14px', fontWeight: '400' }}>
+                  {errorMessage}
+                </p>
+              )}
 
-          <img className='absolute bottom-0 left-1/2 -translate-x-1/2 flex w-full px-10 justify-center' src="/authoverlay.png" alt="" />
+              <Button
+                onClick={handleVerify}
+                style={{ width: '360px', marginBottom: '24px', background: '#875BF7', height: '44px', borderRadius: '12px' }}
+                disabled={!isOtpComplete || verifying}
+              >
+                {verifying ? <Loader className="animate-spin" size={20} /> : 'Verify'}
+              </Button>
+
+              <p className="mb-[32px]" style={{ color: 'var(--Text-Tertiary, #A0A0AB)', fontFeatureSettings: "'case' on, 'cv01' on, 'cv08' on, 'cv09' on, 'cv11' on, 'cv13' on", fontFamily: 'var(--font-body)', fontSize: '14px', fontStyle: 'normal', fontWeight: '400', lineHeight: '20px' }}>
+                By signing up, you agree to the <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Terms of Service</span> and{' '}
+                <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>Privacy Policy</span>.
+              </p>
+            </>
+          )}
+        
+          <p style={{ color: 'var(--Text-Tertiary, #A0A0AB)', fontFeatureSettings: "'case' on, 'cv01' on, 'cv08' on, 'cv09' on, 'cv11' on, 'cv13' on", fontFamily: 'var(--font-body)', fontSize: '14px', fontStyle: 'normal', fontWeight: '400', lineHeight: '20px' }}>
+            Need help? <span className="cursor-pointer" style={{ color: '#875BF7', textDecoration: 'underline' }}>Contact support</span>
+          </p>
         </div>
         
+          <div className='absolute bottom-0 left-1/2 -translate-x-1/2 flex w-full px-10 justify-center' 
+          
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="707" height="239" viewBox="0 0 707 239" fill="none">
+  <g opacity="0.2" filter="url(#filter0_f_206_1502)">
+    <path d="M662.211 382.4V3.3999M623.81 382.4V3.3999M585.408 382.4V3.3999M547.007 382.4V3.3999M508.605 382.4V3.3999M470.204 382.4V3.3999M431.802 382.4V3.3999M393.4 382.4V3.3999M354.999 382.4V3.3999M316.597 382.4V3.3999M278.196 382.4V3.3999M239.794 382.4V3.3999M201.393 382.4V3.3999M162.991 382.4V3.3999M124.589 382.4V3.3999M86.1879 382.4V3.3999M47.7863 382.4V3.3999M9.38477 382.4V3.3999M703.4 380.35H3.3999M703.4 342.472H3.3999M703.4 307.963H3.3999M703.4 273.454H3.3999M703.4 238.945H3.3999M703.4 204.436H3.3999M703.4 169.926H3.3999M703.4 135.417H3.3999M703.4 100.908H3.3999M703.4 66.399H3.3999M703.4 31.8898H3.3999" stroke="url(#paint0_radial_206_1502)"/>
+  </g>
+  <defs>
+    <filter id="filter0_f_206_1502" x="-9.77516e-05" y="-9.77516e-05" width="706.8" height="385.8" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="1.7" result="effect1_foregroundBlur_206_1502"/>
+    </filter>
+    <radialGradient id="paint0_radial_206_1502" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(353.4 215.067) scale(108.684 197.665)">
+      <stop stop-color="#A48AFB" stop-opacity="0"/>
+      <stop offset="0.455" stop-color="#A48AFB" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#A48AFB" stop-opacity="0.05"/>
+    </radialGradient>
+  </defs>
+</svg>
+          </div>
         
       </div>
       
 
       <div className="w-1/2 relative overflow-hidden  m-5 rounded-2xl">
         <div 
-          className="absolute inset-0  w-full"
+          className="absolute inset-0  w-200"
           style={{ 
             backgroundImage: `url('/authbg.png')`, 
             backgroundSize: 'cover', 
@@ -134,7 +293,7 @@ export default function VerifyEmail() {
         />
         <div className="absolute  bottom-8 left-1/2 -translate-x-1/2 flex w-full px-10 justify-center">
           <img 
-            src="/company.png" 
+            src="/company.svg" 
             alt="Company logos"
             className="w-full   grayscale-90"
           />

@@ -1,33 +1,208 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@font-face {
+  font-family: 'Denton Test';
+  src: url('/fonts/DentonTest-Regular.woff2') format('woff2'),
+       url('/fonts/DentonTest-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Denton Test';
+  src: url('/fonts/DentonTest-Medium.woff2') format('woff2'),
+       url('/fonts/DentonTest-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Denton Test';
+  src: url('/fonts/DentonTest-Bold.woff2') format('woff2'),
+       url('/fonts/DentonTest-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Display';
+  src: url('/fonts/InterDisplay-Regular.woff2') format('woff2'),
+       url('/fonts/InterDisplay-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Display';
+  src: url('/fonts/InterDisplay-Medium.woff2') format('woff2'),
+       url('/fonts/InterDisplay-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Display';
+  src: url('/fonts/InterDisplay-SemiBold.woff2') format('woff2'),
+       url('/fonts/InterDisplay-SemiBold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Display';
+  src: url('/fonts/InterDisplay-Bold.woff2') format('woff2'),
+       url('/fonts/InterDisplay-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary: #131316;
+  --background: #131316;
+  --foreground: #ffffff;
+  --brand-50: #faf5ff;
+  --brand-100: #f3e8ff;
+  --brand-200: #e9d5ff;
+  --brand-300: #d8b4fe;
+  --brand-400: #c084fc;
+  --brand-500: #a855f7;
+  --brand-600: #9333ea;
+  --brand-700: #7e22ce;
+  --brand-800: #6b21a8;
+  --brand-900: #581c87;
+  --brand-950: #46125d;
+  --brand: var(--brand-500);
+  --gray-white-25: #fcfcfd;
+  --gray-white-50: #f8f9fb;
+  --gray-white-100: #f2f4f7;
+  --gray-white-200: #e7e9ef;
+  --gray-white-300: #d7dae4;
+  --gray-white-400: #bcc0cd;
+  --gray-black-500: #8a8fa2;
+  --gray-black-600: #6f7588;
+  --gray-black-700: #565b6d;
+  --gray-black-800: #414658;
+  --gray-black-900: #2c3041;
+  --gray-black-950: #1c1f2d;
+  --error-200: #feb2c6;
+  --error-700: #8d2b57;
+  --error-900: #40121f;
+  --error: var(--error-700);
+  --warning-200: #fdf0b0;
+  --warning-700: #75661f;
+  --warning-900: #3c3110;
+  --warning: var(--warning-700);
+  --info-200: #9fd3ff;
+  --info-700: #1661c1;
+  --info-900: #042247;
+  --info: var(--info-700);
+  --success-200: #b8f5d0;
+  --success-700: #257356;
+  --success-900: #0e2f22;
+  --success: var(--success-700);
   --disabled: #51525c;
   --placeholder: #1a1a1e;
+  --text-placeholder: #70707b;
+  --text-tertiary: #A0A0AB;
   --active: #875bf7;
-  --font-inter: 'Inter', sans-serif;
-  --font-playfair: 'Playfair Display', serif;
+  --font-heading: 'Denton Test', serif;
+  --font-body: 'Inter Display', sans-serif;
+  --card: #1a1a1e;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1e;
+  --popover-foreground: #ffffff;
+  --primary: #875bf7;
+  --primary-foreground: #ffffff;
+  --secondary: #2c3041;
+  --secondary-foreground: #ffffff;
+  --muted: #51525c;
+  --muted-foreground: #a0a0ab;
+  --accent: #875bf7;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #26272b;
+  --input: #1a1a1e;
+  --ring: #875bf7;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #131316;
+  --foreground: #ffffff;
+  --card: #1a1a1e;
+  --card-foreground: #ffffff;
+  --popover: #1a1a1e;
+  --popover-foreground: #ffffff;
+  --primary: #875bf7;
+  --primary-foreground: #ffffff;
+  --secondary: #2c3041;
+  --secondary-foreground: #ffffff;
+  --muted: #51525c;
+  --muted-foreground: #a0a0ab;
+  --accent: #875bf7;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #26272b;
+  --input: #1a1a1e;
+  --ring: #875bf7;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-body);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-serif: var(--font-heading);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
   }
-}
-
-body {
-  background: var(--primary);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+  p, a, span, label, button, input, textarea {
+    font-family: var(--font-body);
+  }
+  input::placeholder,
+  textarea::placeholder,
+  select::placeholder {
+    color: #8d8d8f;
+  }
 }
