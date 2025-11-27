@@ -36,10 +36,12 @@ const signup = async (req, res) => {
 
         // Check if user already exists
         const existingUser = await User.findOne({ email: email.toLowerCase() });
-        if (existingUser) {
+        
+        // If user exists and is verified, don't allow signup
+        if (existingUser && existingUser.verified) {
             return res.status(400).json({
                 success: false,
-                message: 'User already exists',
+                message: 'User already exists. Please login instead.',
             });
         }
 
@@ -49,6 +51,25 @@ const signup = async (req, res) => {
         // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // If unverified user exists, update their details and resend OTP
+        if (existingUser && !existingUser.verified) {
+            existingUser.password = hashedPassword;
+            existingUser.otp = {
+                code: otp,
+                expiresAt: otpExpiresAt,
+            };
+            await existingUser.save();
+            
+            // Send OTP email
+            await sendOTPEmail(email, otp);
+
+            return res.status(200).json({
+                success: true,
+                message: 'OTP sent to your email',
+                email: email.toLowerCase(),
+            });
+        }
 
         // Create new user
         const newUser = new User({

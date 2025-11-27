@@ -3,8 +3,8 @@ const nodemailer = require('nodemailer');
 // Create transporter for Zoho SMTP
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.zoho.com',
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: process.env.SMTP_SECURE === 'true',
+    port: parseInt(process.env.SMTP_PORT || '587'), // Port 587 for STARTTLS (Render-compatible)
+    secure: false, // Use STARTTLS instead of SSL/TLS
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -12,6 +12,9 @@ const transporter = nodemailer.createTransport({
     tls: {
         rejectUnauthorized: false
     },
+    requireTLS: true, // Force STARTTLS
+    connectionTimeout: 10000, // 10 seconds timeout
+    greetingTimeout: 5000, // 5 seconds greeting timeout
     family: 4 // Force IPv4 - important for Render deployment
 });
 
