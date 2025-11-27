@@ -50,6 +50,11 @@ export default function LoopxHiring() {
   }, [router])
 
   const handleGoogleSignIn = async () => {
+    if (!auth || !googleProvider) {
+      console.error('Firebase not initialized')
+      return
+    }
+    
     try {
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user

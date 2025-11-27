@@ -1,5 +1,5 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
@@ -11,9 +11,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase only on client side
-let app;
-let auth;
-let googleProvider;
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let googleProvider: GoogleAuthProvider | undefined;
 
 if (typeof window !== 'undefined') {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
