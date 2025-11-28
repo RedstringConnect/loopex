@@ -1,4 +1,4 @@
-const transporter = require('../config/mailer.config');
+const sgMail = require('../config/mailer.config');
 const { getMagicLinkEmailTemplate, getOTPEmailTemplate } = require('./emailTemplates.util');
 
 /**
@@ -9,21 +9,21 @@ const { getMagicLinkEmailTemplate, getOTPEmailTemplate } = require('./emailTempl
  */
 const sendMagicLinkEmail = async (email, magicLink) => {
     try {
-        const mailOptions = {
-            from: {
-                name: process.env.FROM_NAME || 'Loopx Team',
-                address: process.env.FROM_EMAIL || process.env.SMTP_USER,
-            },
+        const msg = {
             to: email,
+            from: {
+                email: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
+                name: process.env.FROM_NAME || 'Loopx Team',
+            },
             subject: 'Verify your email - Loopx',
             html: getMagicLinkEmailTemplate(email, magicLink),
         };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
-        return { success: true, messageId: info.messageId };
+        const response = await sgMail.send(msg);
+        console.log('Email sent successfully:', response[0].statusCode);
+        return { success: true, messageId: response[0].headers['x-message-id'] };
     } catch (error) {
-        console.error('Email sending failed:', error);
+        console.error('Email sending failed:', error.response?.body || error);
         throw new Error('Failed to send verification email');
     }
 };
@@ -36,21 +36,21 @@ const sendMagicLinkEmail = async (email, magicLink) => {
  */
 const sendOTPEmail = async (email, otp) => {
     try {
-        const mailOptions = {
-            from: {
-                name: process.env.FROM_NAME || 'Loopx Team',
-                address: process.env.FROM_EMAIL || process.env.SMTP_USER,
-            },
+        const msg = {
             to: email,
+            from: {
+                email: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
+                name: process.env.FROM_NAME || 'Loopx Team',
+            },
             subject: 'Your verification code - Loopx',
             html: getOTPEmailTemplate(email, otp),
         };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log('OTP email sent successfully:', info.messageId);
-        return { success: true, messageId: info.messageId };
+        const response = await sgMail.send(msg);
+        console.log('OTP email sent successfully:', response[0].statusCode);
+        return { success: true, messageId: response[0].headers['x-message-id'] };
     } catch (error) {
-        console.error('OTP email sending failed:', error);
+        console.error('OTP email sending failed:', error.response?.body || error);
         throw new Error('Failed to send OTP email');
     }
 };
