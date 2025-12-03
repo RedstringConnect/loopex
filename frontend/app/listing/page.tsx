@@ -3,15 +3,21 @@
 import Sidebar from '@/components/dashboard/Sidebar'
 import ProjectModal from '@/components/dashboard/ProjectModal'
 import { Button } from '@/components/ui/button'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 const socialIcons = [
   {
     name: "whatsapp",
     svg: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M1 5.8C1 4.11984 1 3.27976 1.32698 2.63803C1.6146 2.07354 2.07354 1.6146 2.63803 1.32698C3.27976 1 4.11984 1 5.8 1H10.2C11.8802 1 12.7202 1 13.362 1.32698C13.9265 1.6146 14.3854 2.07354 14.673 2.63803C15 3.27976 15 4.11984 15 5.8V10.2C15 11.8802 15 12.7202 14.673 13.362C14.3854 13.9265 13.9265 14.3854 13.362 14.673C12.7202 15 11.8802 15 10.2 15H5.8C4.11984 15 3.27976 15 2.63803 14.673C2.07354 14.3854 1.6146 13.9265 1.32698 13.362C1 12.7202 1 11.8802 1 10.2V5.8Z" fill="url(#paint0_linear_3458_2975)"/>
-      <path d="M8 11.5C10.4853 11.5 12.5 9.82107 12.5 7.75C12.5 5.67893 10.4853 4 8 4C5.51472 4 3.5 5.67893 3.5 7.75C3.5 9.06275 4.30944 10.2179 5.5351 10.8879C5.49407 11.2213 5.37074 11.6663 5 12C5.70106 11.8738 6.26057 11.6202 6.67853 11.3357C7.09639 11.4425 7.54014 11.5 8 11.5Z" fill="white"/>
-    </svg>`
+  <path d="M1 5.8C1 4.11984 1 3.27976 1.32698 2.63803C1.6146 2.07354 2.07354 1.6146 2.63803 1.32698C3.27976 1 4.11984 1 5.8 1H10.2C11.8802 1 12.7202 1 13.362 1.32698C13.9265 1.6146 14.3854 2.07354 14.673 2.63803C15 3.27976 15 4.11984 15 5.8V10.2C15 11.8802 15 12.7202 14.673 13.362C14.3854 13.9265 13.9265 14.3854 13.362 14.673C12.7202 15 11.8802 15 10.2 15H5.8C4.11984 15 3.27976 15 2.63803 14.673C2.07354 14.3854 1.6146 13.9265 1.32698 13.362C1 12.7202 1 11.8802 1 10.2V5.8Z" fill="url(#paint0_linear_3501_30884)"/>
+  <path d="M8 11.5C10.4853 11.5 12.5 9.82107 12.5 7.75C12.5 5.67893 10.4853 4 8 4C5.51472 4 3.5 5.67893 3.5 7.75C3.5 9.06275 4.30944 10.2179 5.5351 10.8879C5.49407 11.2213 5.37074 11.6663 5 12C5.70106 11.8738 6.26057 11.6202 6.67853 11.3357C7.09639 11.4425 7.54014 11.5 8 11.5Z" fill="white"/>
+  <defs>
+    <linearGradient id="paint0_linear_3501_30884" x1="8" y1="1" x2="8" y2="15" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#09D72C"/>
+      <stop offset="1" stop-color="#0F9622"/>
+    </linearGradient>
+  </defs>
+</svg>`
   },
   {
     name: "drive",
@@ -51,6 +57,69 @@ const Listing = () => {
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [userProjects, setUserProjects] = useState<string[]>([])
   const [projectName, setProjectName] = useState('')
+  const [candidates, setCandidates] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // Fetch profiles data from backend
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        setLoading(true)
+        const token = localStorage.getItem('authToken')
+        
+        if (!token) {
+          setError('Not authenticated')
+          setLoading(false)
+          return
+        }
+
+        // For now, fetching from a mock endpoint or you can modify to fetch multiple profiles
+        // This is a sample implementation - adjust based on your backend API
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch candidates')
+        }
+
+        const data = await response.json()
+        
+        // Transform profile data to candidate card format
+        if (data.success && Array.isArray(data.data)) {
+          const transformedCandidates = data.data.map((profile: any) => ({
+            id: profile._id,
+            name: profile.name,
+            position: profile.workExperience?.[0]?.title || 'Position not specified',
+            company: profile.workExperience?.[0]?.company || '',
+            education: profile.education?.[0]?.degree || 'Education not specified',
+            institute: profile.education?.[0]?.institute || '',
+            location: profile.location || 'Location not specified',
+            description: profile.workExperience?.[0]?.description || 'No description',
+            highlights: profile.skills?.flatMap((s: any) => s.skills).slice(0, 4) || [],
+            availability: 'Immediately',
+            salary: '10 - 15 LPA',
+            socials: profile.socials || {}
+          }))
+          setCandidates(transformedCandidates)
+        } else {
+          setCandidates([])
+        }
+      } catch (err) {
+        console.error('Error fetching candidates:', err)
+        setError('Failed to load candidates')
+        setCandidates([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCandidates()
+  }, [])
 
   const handleCreateProject = async () => {
     if (projectName.trim()) {
@@ -89,63 +158,15 @@ const Listing = () => {
   }
 
 
-  const candidatesData = [
-    {
-      id: 1,
-      name: 'Srijan Reddy',
-      position: 'Product Designer at Swiggy',
-      education: 'Design, Delft University of Technology',
-      location: 'Hyderabad, Telangana, India',
-      description: 'Srijan is currently working as a UX/Product Designer contributing to end-to-end design for web and mobile products. Skilled in creating, Polished UI, User flows, Wireframes with a strong foundation in usability and accessibility.',
-      highlights: ['UX/Product Designer', 'Polished UI', 'User flows', 'Wireframes'],
-      availability: 'Immediately',
-      salary: '10 - 15 LPA'
-    },
-    {
-      id: 2,
-      name: 'Ananya Sharma',
-      position: 'Senior UX Designer at Flipkart',
-      education: 'HCI, IIT Bombay',
-      location: 'Bangalore, Karnataka, India',
-      description: 'Ananya is currently working as a Senior UX Designer leading design systems and user research initiatives. Expert in Design Systems, Prototyping, User Research with extensive experience in e-commerce platforms.',
-      highlights: ['Senior UX Designer', 'Design Systems', 'Prototyping', 'User Research'],
-      availability: 'Immediately',
-      salary: '15 - 20 LPA'
-    },
-    {
-      id: 3,
-      name: 'Rahul Verma',
-      position: 'UI/UX Designer at Razorpay',
-      education: 'Design, NID Ahmedabad',
-      location: 'Mumbai, Maharashtra, India',
-      description: 'Rahul is currently working as a UI/UX Designer specializing in fintech products and payment interfaces. Proficient in Visual Design, Interaction Design, Micro-interactions with a keen eye for detail and pixel-perfect execution.',
-      highlights: ['UI/UX Designer', 'Visual Design', 'Interaction Design', 'Micro-interactions'],
-      availability: '2 weeks notice',
-      salary: '12 - 18 LPA'
-    },
-    {
-      id: 4,
-      name: 'Priya Nair',
-      position: 'Product Designer at Zomato',
-      education: 'Design, Srishti Institute',
-      location: 'Pune, Maharashtra, India',
-      description: 'Priya is currently working as a Product Designer focusing on mobile-first experiences and design strategy. Specialized in Mobile Design, Design Strategy, A/B Testing with proven track record of improving user engagement.',
-      highlights: ['Product Designer', 'Mobile Design', 'Design Strategy', 'A/B Testing'],
-      availability: 'Immediately',
-      salary: '10 - 15 LPA'
-    },
-    {
-      id: 5,
-      name: 'Arjun Mehta',
-      position: 'Lead Designer at PhonePe',
-      education: 'Design, NIFT Delhi',
-      location: 'Bangalore, Karnataka, India',
-      description: 'Arjun is currently working as a Lead Designer managing cross-functional teams and driving design excellence. Expert in Design Leadership, Product Thinking, Design Ops with experience scaling design teams and processes.',
-      highlights: ['Lead Designer', 'Design Leadership', 'Product Thinking', 'Design Ops'],
-      availability: '1 month notice',
-      salary: '18 - 25 LPA'
-    }
-  ]
+  const candidatesData = candidates.length > 0 ? candidates : []
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#131316' }}>
+        <p style={{ color: '#A0A0AB' }}>Loading candidates...</p>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -291,7 +312,8 @@ const Listing = () => {
                 </div>
 
                 <div className='px-[18px]'>
-                  {candidatesData.map((candidate) => (
+                  {candidatesData.length > 0 ? (
+                    candidatesData.map((candidate) => (
                     <div
                       key={candidate.id}
                       style={{
@@ -524,7 +546,12 @@ const Listing = () => {
                         </span>
                       </div>
                     </div>
-                  ))}
+                  ))
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#A0A0AB' }}>
+                      <p>No candidates found. Create a profile to get started.</p>
+                    </div>
+                  )}
                 </div>
               </div>
              

@@ -22,7 +22,7 @@ const onboardingSchema = new mongoose.Schema({
     fundingStage: {
         type: String,
         required: true,
-        enum: ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series C+', 'Bootstrapped'],
+        enum: ['Bootstrapped', 'Pre-Seed', 'Seed', 'Series A', 'Series B+', 'Public'],
     },
     industry: {
         type: String,

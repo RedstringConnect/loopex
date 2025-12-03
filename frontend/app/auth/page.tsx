@@ -170,9 +170,9 @@ export default function LoopxHiring() {
           </h1>
           <p className="text-gray-400 text-sm " style={{ color: 'var(--Text-Tertiary, #A0A0AB)', fontFeatureSettings: "'case' on, 'cv01' on, 'cv08' on, 'cv09' on, 'cv11' on, 'cv13' on", fontFamily: 'var(--font-body)', fontSize: '14px', fontStyle: 'normal', fontWeight: '400', lineHeight: '20px' }}>
             {isSignUp ? (
-              <>Already have an account? <span className="cursor-pointer" style={{ color: 'var(--active)' }} onClick={() => setIsSignUp(false)}>Sign in →</span></>
+              <>Already have an account? <span className="cursor-pointer" style={{ color: '#A48AFB' }} onClick={() => setIsSignUp(false)}>Sign in →</span></>
             ) : (
-              <>Don&apos;t have an account? <span className="cursor-pointer" style={{ color: 'var(--active)' }} onClick={() => setIsSignUp(true)}>Sign up →</span></>
+              <>Don&apos;t have an account? <span className="cursor-pointer" style={{ color: '#A48AFB' }} onClick={() => setIsSignUp(true)}>Sign up →</span></>
             )}
           </p>
           <button 

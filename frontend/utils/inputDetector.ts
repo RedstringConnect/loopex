@@ -49,7 +49,7 @@ const EXPERIENCE_KEYWORDS = [
 const SALARY_KEYWORDS = [
   'lakh','lakhs','lac','lacs','lpa','ctc','salary','package',
   'fixed','variable','compensation','in hand','take home',
-  'inr','rupees','rs','₹','crore','crores','k','thousand'
+  'inr','rupees','rs','₹','crore','crores','thousand'
 ];
 
 

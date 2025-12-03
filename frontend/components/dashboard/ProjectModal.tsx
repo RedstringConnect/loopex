@@ -22,7 +22,7 @@ export default function ProjectModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed w- inset-0 flex items-center justify-center bg-black/50 z-50">
+    <div className="fixed  inset-0 flex items-center justify-center bg-black/50 z-50">
       <div 
         className="text-left relative"
         style={{

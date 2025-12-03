@@ -7,6 +7,7 @@ const connectDB = require('./config/database.config');
 const authRoutes = require('./routes/auth.routes');
 const onboardingRoutes = require('./routes/onboarding.routes');
 const projectRoutes = require('./routes/project.routes');
+const profileRoutes = require('./routes/profile.routes');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
