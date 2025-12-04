@@ -1,5 +1,6 @@
 const express = require('express');
 const {
+    getAllProfiles,
     getProfile,
     upsertProfile,
     addWorkExperience,
@@ -13,7 +14,10 @@ const router = express.Router();
 // Protected routes - require authentication
 router.use(authenticate);
 
-// Get profile
+// Get all profiles (for listing/search)
+router.get('/', getAllProfiles);
+
+// Get profile by userId
 router.get('/:userId', getProfile);
 
 // Create or update profile

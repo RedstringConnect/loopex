@@ -21,17 +21,14 @@ export default function LoopxHiring() {
 
   // Check if user is already authenticated with completed onboarding
   useEffect(() => {
-    const token = localStorage.getItem('authToken')
     const userId = localStorage.getItem('userId')
     
-    if (token && userId) {
-      // Check onboarding status
+    if (userId) {
+      // Check onboarding status using cookies
       const checkStatus = async () => {
         try {
           const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/onboarding/status/${userId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+            credentials: 'include'
           })
           const data = await response.json()
           
@@ -115,6 +112,7 @@ export default function LoopxHiring() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
 
@@ -124,8 +122,7 @@ export default function LoopxHiring() {
         if (isSignUp) {
           router.push(`/auth/verify?email=${encodeURIComponent(email)}`)
         } else {
-          // Store token and user data
-          localStorage.setItem('authToken', data.token)
+          // Store user data (token is now in HTTP-only cookie)
           if (data.user) {
             localStorage.setItem('userId', data.user.userId)
             localStorage.setItem('userEmail', data.user.email)

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/dashboard/Sidebar'
 import ProjectModal from '@/components/dashboard/ProjectModal'
 import FilterModal from '@/components/dashboard/FilterModal'
@@ -49,6 +50,7 @@ const supportLinks = [
 ]
 
 export default function Dashboard() {
+  const router = useRouter()
   const [showModal, setShowModal] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [userProjects, setUserProjects] = useState<string[]>([])
@@ -56,58 +58,93 @@ export default function Dashboard() {
   const [searchInput, setSearchInput] = useState('')
   const [showFilterModal, setShowFilterModal] = useState(false)
   const [showUploadJDModal, setShowUploadJDModal] = useState(false)
+  const [showProjectsDropdown, setShowProjectsDropdown] = useState(false)
+
+  const handleSearch = (query: string) => {
+    // Navigate to listing page with search query
+    router.push(`/listing?query=${encodeURIComponent(query)}`)
+  }
 
   // Show modal if no projects exist and fetch projects on mount
   useEffect(() => {
     fetchUserProjects()
+    // Restore selected project from localStorage
+    const savedProject = localStorage.getItem('selectedProject')
+    if (savedProject) {
+      setSelectedProject(savedProject)
+    }
+    // Restore dropdown state from localStorage
+    const showDropdown = localStorage.getItem('showProjectsDropdown') === 'true'
+    if (showDropdown) {
+      setShowProjectsDropdown(true)
+    }
   }, [])
 
   useEffect(() => {
     if (userProjects.length === 0) {
       setShowModal(true)
+      // Clear selected project if no projects exist
+      setSelectedProject(null)
+      localStorage.removeItem('selectedProject')
+    } else if (userProjects.length > 0 && !selectedProject) {
+      // Auto-select first project if none is selected
+      setSelectedProject(userProjects[0])
+      localStorage.setItem('selectedProject', userProjects[0])
     }
-  }, [userProjects.length])
+  }, [userProjects.length, userProjects])
+
+  // Persist selected project to localStorage
+  useEffect(() => {
+    if (selectedProject) {
+      localStorage.setItem('selectedProject', selectedProject)
+    }
+  }, [selectedProject])
+
+  // Persist dropdown state to localStorage
+  useEffect(() => {
+    localStorage.setItem('showProjectsDropdown', showProjectsDropdown.toString())
+  }, [showProjectsDropdown])
 
   const fetchUserProjects = async () => {
     try {
-      const token = localStorage.getItem('authToken')
-      if (!token) {
-        console.error('No auth token found')
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      console.log('Fetching projects from:', `${apiUrl}/api/projects`)
+      
+      const response = await fetch(`${apiUrl}/api/projects`, {
+        credentials: 'include'
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch projects:', response.statusText)
         return
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
       const data = await response.json()
+      console.log('Projects response:', data)
 
-      if (data.success) {
-        setUserProjects(data.projects.map((p: any) => p.name))
+      if (data.success && data.projects && data.projects.length > 0) {
+        const projectNames = data.projects.map((p: any) => p.name)
+        setUserProjects(projectNames)
         // Don't auto-select any project on dashboard
+      } else {
+        console.log('No projects found')
+        setUserProjects([])
       }
     } catch (error) {
       console.error('Error fetching projects:', error)
+      setUserProjects([])
     }
   }
 
   const handleCreateProject = async () => {
     if (projectName.trim()) {
       try {
-        const token = localStorage.getItem('authToken')
-        if (!token) {
-          console.error('No auth token found')
-          return
-        }
-
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
+          credentials: 'include',
           body: JSON.stringify({ name: projectName.trim() })
         })
 
@@ -117,6 +154,7 @@ export default function Dashboard() {
           const newProject = projectName.trim()
           setUserProjects([...userProjects, newProject])
           setSelectedProject(newProject)
+          localStorage.setItem('selectedProject', newProject)
           setProjectName('')
           setShowModal(false)
         } else {
@@ -140,6 +178,8 @@ export default function Dashboard() {
         userProjects={userProjects}
         onNewProject={() => setShowModal(true)}
         onProjectSelect={setSelectedProject}
+        showProjectsDropdown={showProjectsDropdown}
+        onShowProjectsDropdownChange={setShowProjectsDropdown}
       />
 
       <div className="min-h-screen ml-[236px]">
@@ -152,6 +192,7 @@ export default function Dashboard() {
               setSearchInput={setSearchInput}
               onFilterClick={() => setShowFilterModal(true)}
               onUploadJDClick={() => setShowUploadJDModal(true)}
+              onSearch={handleSearch}
             />
           </div>
         </main>

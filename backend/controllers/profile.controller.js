@@ -1,6 +1,46 @@
 const User = require('../models/User.model');
 const Profile = require('../models/Profile.model');
 
+// Get all profiles (for listing/search)
+const getAllProfiles = async (req, res) => {
+    try {
+        const { query } = req.query;
+
+        let filter = {};
+
+        // If search query provided, search across multiple fields
+        if (query) {
+            const searchRegex = new RegExp(query, 'i');
+            filter = {
+                $or: [
+                    { name: searchRegex },
+                    { location: searchRegex },
+                    { 'workExperience.title': searchRegex },
+                    { 'workExperience.company': searchRegex },
+                    { 'education.degree': searchRegex },
+                    { 'education.institute': searchRegex },
+                    { 'skills.skills': searchRegex },
+                ]
+            };
+        }
+
+        const profiles = await Profile.find(filter).sort({ createdAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: profiles,
+            count: profiles.length
+        });
+    } catch (error) {
+        console.error('Error fetching profiles:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch profiles',
+            error: error.message,
+        });
+    }
+};
+
 // Get user profile
 const getProfile = async (req, res) => {
     try {
@@ -252,6 +292,7 @@ const addSkills = async (req, res) => {
 };
 
 module.exports = {
+    getAllProfiles,
     getProfile,
     upsertProfile,
     addWorkExperience,

@@ -3,7 +3,9 @@
 import Sidebar from '@/components/dashboard/Sidebar'
 import ProjectModal from '@/components/dashboard/ProjectModal'
 import { Button } from '@/components/ui/button'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Loader } from 'lucide-react'
 
 const socialIcons = [
   {
@@ -52,6 +54,9 @@ const socialIcons = [
 ];
 
 const Listing = () => {
+  const searchParams = useSearchParams()
+  const searchQuery = searchParams.get('query') || ''
+  
   const [showModal, setShowModal] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
@@ -60,31 +65,128 @@ const Listing = () => {
   const [candidates, setCandidates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showProjectsDropdown, setShowProjectsDropdown] = useState(false)
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
+
+  // Fetch user projects and restore selected project on mount
+  useEffect(() => {
+    const fetchUserProjects = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+        const response = await fetch(`${apiUrl}/api/projects`, {
+          credentials: 'include'
+        })
+
+        if (!response.ok) {
+          console.error('Failed to fetch projects:', response.statusText)
+          return
+        }
+
+        const data = await response.json()
+        if (data.success && Array.isArray(data.data)) {
+          const projectNames = data.data.map((project: { name: string }) => project.name)
+          setUserProjects(projectNames)
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error)
+      }
+    }
+
+    fetchUserProjects()
+    
+    // Restore selected project from localStorage
+    const savedProject = localStorage.getItem('selectedProject')
+    if (savedProject) {
+      setSelectedProject(savedProject)
+    }
+    
+    // Restore dropdown state from localStorage
+    const showDropdown = localStorage.getItem('showProjectsDropdown') === 'true'
+    if (showDropdown) {
+      setShowProjectsDropdown(true)
+    }
+  }, [])
+
+  // Auto-select first project if none selected
+  useEffect(() => {
+    if (userProjects.length > 0 && !selectedProject) {
+      setSelectedProject(userProjects[0])
+      localStorage.setItem('selectedProject', userProjects[0])
+    }
+  }, [userProjects.length, userProjects, selectedProject])
+
+  // Persist selected project to localStorage
+  useEffect(() => {
+    if (selectedProject) {
+      localStorage.setItem('selectedProject', selectedProject)
+    }
+  }, [selectedProject])
+
+  // Persist dropdown state to localStorage
+  useEffect(() => {
+    localStorage.setItem('showProjectsDropdown', showProjectsDropdown.toString())
+  }, [showProjectsDropdown])
+
+  // Filter candidates based on search query
+  const filteredCandidates = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return candidates
+    }
+    
+    const query = searchQuery.toLowerCase()
+    
+    return candidates.filter((candidate) => {
+      // Search in name
+      if (candidate.name?.toLowerCase().includes(query)) return true
+      
+      // Search in position/title
+      if (candidate.position?.toLowerCase().includes(query)) return true
+      
+      // Search in company
+      if (candidate.company?.toLowerCase().includes(query)) return true
+      
+      // Search in location
+      if (candidate.location?.toLowerCase().includes(query)) return true
+      
+      // Search in education
+      if (candidate.education?.toLowerCase().includes(query)) return true
+      
+      // Search in description
+      if (candidate.description?.toLowerCase().includes(query)) return true
+      
+      // Search in skills/highlights
+      if (candidate.highlights?.some((skill: string) => 
+        skill?.toLowerCase().includes(query)
+      )) return true
+      
+      return false
+    })
+  }, [candidates, searchQuery])
 
   // Fetch profiles data from backend
   useEffect(() => {
     const fetchCandidates = async () => {
       try {
         setLoading(true)
-        const token = localStorage.getItem('authToken')
-        
-        if (!token) {
-          setError('Not authenticated')
-          setLoading(false)
-          return
+
+        // Build URL with optional search query
+        const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`)
+        if (searchQuery) {
+          url.searchParams.append('query', searchQuery)
         }
 
-        // For now, fetching from a mock endpoint or you can modify to fetch multiple profiles
-        // This is a sample implementation - adjust based on your backend API
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        const response = await fetch(url.toString(), {
+          credentials: 'include'
         })
 
         if (!response.ok) {
-          throw new Error('Failed to fetch candidates')
+          if (response.status === 401) {
+            setError('Not authenticated')
+          } else {
+            throw new Error('Failed to fetch candidates')
+          }
+          setLoading(false)
+          return
         }
 
         const data = await response.json()
@@ -99,7 +201,7 @@ const Listing = () => {
             education: profile.education?.[0]?.degree || 'Education not specified',
             institute: profile.education?.[0]?.institute || '',
             location: profile.location || 'Location not specified',
-            description: profile.workExperience?.[0]?.description || 'No description',
+            description: profile.workExperience?.[0]?.description || 'No description available',
             highlights: profile.skills?.flatMap((s: any) => s.skills).slice(0, 4) || [],
             availability: 'Immediately',
             salary: '10 - 15 LPA',
@@ -119,23 +221,17 @@ const Listing = () => {
     }
 
     fetchCandidates()
-  }, [])
+  }, [searchQuery])
 
   const handleCreateProject = async () => {
     if (projectName.trim()) {
       try {
-        const token = localStorage.getItem('authToken')
-        if (!token) {
-          console.error('No auth token found')
-          return
-        }
-
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
+          credentials: 'include',
           body: JSON.stringify({ name: projectName.trim() })
         })
 
@@ -158,12 +254,12 @@ const Listing = () => {
   }
 
 
-  const candidatesData = candidates.length > 0 ? candidates : []
+  const candidatesData = filteredCandidates.length > 0 ? filteredCandidates : []
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#131316' }}>
-        <p style={{ color: '#A0A0AB' }}>Loading candidates...</p>
+        <Loader className='animate-spin'/>
       </div>
     )
   }
@@ -177,9 +273,13 @@ const Listing = () => {
         userProjects={userProjects}
         onNewProject={() => setShowModal(true)}
         onProjectSelect={setSelectedProject}
+        showProjectsDropdown={showProjectsDropdown}
+        onShowProjectsDropdownChange={setShowProjectsDropdown}
       />
       <div className="min-h-screen rounded-[24px] flex px-[16px] py-[12px] bg-[#131316] ml-[252px]" style={{ backgroundColor: '#131316' }}>
-      <main className={`flex-1 relative overflow-hidden bg-[#161619] p-[16px] border border-[#26272B] rounded-[20px] transition-all duration-300 ${showModal || showFilterModal ? 'blur-[2px]' : ''}`}>
+      <main className={`flex-1 flex relative overflow-hidden bg-[#161619]  border border-[#26272B] rounded-[20px] transition-all duration-300 ${showModal || showFilterModal ? 'blur-[2px]' : ''}`}>
+              {/* Left side - Candidate List */}
+              <div className='flex-1 overflow-y-auto hide-scrollbar' style={{ maxHeight: 'calc(100vh - 48px)' }}>
               <div className='p-[6px]'>
                 {/* Header Section */}
                 <div 
@@ -233,7 +333,7 @@ const Listing = () => {
                       lineHeight: '24px',
                       margin: 0
                     }}>
-                      UX Designer in London with 2+ years experience at top consulting firms
+                      {searchQuery || 'All Candidates'}
                     </h1>
                     <button 
                      className='ml-[4px] mr-[12px]'
@@ -263,7 +363,7 @@ const Listing = () => {
                         lineHeight: '20px',
                         color: '#CAF7DA'
                       }}>
-                        12,000
+                        {filteredCandidates.length.toLocaleString()}
                       </span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" fill="none">
   <path d="M4.12495 5.25C4.12495 4.21447 4.96442 3.375 5.99995 3.375C7.0355 3.375 7.87495 4.21447 7.87495 5.25C7.87495 6.0128 7.4194 6.66925 6.76555 6.9621C8.10245 7.27325 9.125 8.38075 9.125 9.7495C9.125 9.95665 8.9571 10.1245 8.75 10.1245H3.25C3.0429 10.1245 2.875 9.95665 2.875 9.7495C2.875 8.38075 3.89753 7.2733 5.2344 6.9621C4.58049 6.66925 4.12495 6.01285 4.12495 5.25Z" fill="#CAF7DA"/>
@@ -316,6 +416,7 @@ const Listing = () => {
                     candidatesData.map((candidate) => (
                     <div
                       key={candidate.id}
+                      onClick={() => setSelectedCandidate(candidate)}
                       style={{
                         position: 'relative',
                         display: 'flex',
@@ -325,9 +426,13 @@ const Listing = () => {
                         gap: 'var(--spacing-3xl, 24px)',
                         alignSelf: 'stretch',
                         borderRadius: 'var(--radius-3xl, 20px)',
-                        border: '0.5px solid var(--Border-Secondary, #26272B)',
+                        border: selectedCandidate?.id === candidate.id 
+                          ? '1px solid var(--Surface-Brand-Primary, #875BF7)' 
+                          : '0.5px solid var(--Border-Secondary, #26272B)',
                         background: 'var(--Surface-Secondary, #1A1A1E)',
-                        marginBottom: '16px'
+                        marginBottom: '16px',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s ease'
                       }}
                     >
                       {/* Top-left corner checkbox */}
@@ -454,54 +559,37 @@ const Listing = () => {
                           fontWeight: 400,
                           lineHeight: '20px'
                         }}>
-                          <span style={{ color: '#8B5CF6' }}>🚀</span> {candidate.description.split(candidate.highlights[0])[0]}
-                          <span style={{ 
-                            color: '#FFF',
-                            fontWeight: 600,
-                            background: 'rgba(139, 92, 246, 0.1)',
-                            padding: '2px 4px',
-                            borderRadius: '4px'
-                          }}>
-                            {candidate.highlights[0]}
-                          </span>
-                          {candidate.description.split(candidate.highlights[0])[1].split(candidate.highlights[1])[0]}
-                          <span style={{ 
-                            color: '#FFF',
-                            fontWeight: 600,
-                            background: 'rgba(139, 92, 246, 0.1)',
-                            padding: '2px 4px',
-                            borderRadius: '4px'
-                          }}>
-                            {candidate.highlights[1]}
-                          </span>
-                          {candidate.highlights[2] && (
-                            <>
-                              {candidate.description.split(candidate.highlights[1])[1].split(candidate.highlights[2])[0]}
-                              <span style={{ 
-                                color: '#FFF',
-                                fontWeight: 600,
-                                background: 'rgba(139, 92, 246, 0.1)',
-                                padding: '2px 4px',
-                                borderRadius: '4px'
-                              }}>
-                                {candidate.highlights[2]}
-                              </span>
-                            </>
-                          )}
-                          {candidate.highlights[3] && (
-                            <>
-                              {candidate.description.split(candidate.highlights[2])[1].split(candidate.highlights[3])[0]}
-                              <span style={{ 
-                                color: '#FFF',
-                                fontWeight: 600,
-                                background: 'rgba(139, 92, 246, 0.1)',
-                                padding: '2px 4px',
-                                borderRadius: '4px'
-                              }}>
-                                {candidate.highlights[3]}
-                              </span>
-                              {candidate.description.split(candidate.highlights[3])[1]}
-                            </>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}>
+                            <g clipPath="url(#clip0_3448_30823)">
+                              <path d="M7 1.3125C7.24162 1.3125 7.4375 1.50838 7.4375 1.75C7.4375 2.92021 8.02702 4.12704 8.94997 5.05002C9.87297 5.97298 11.0798 6.5625 12.25 6.5625C12.4916 6.5625 12.6875 6.75838 12.6875 7C12.6875 7.24162 12.4916 7.4375 12.25 7.4375C11.0798 7.4375 9.87297 8.02702 8.94997 8.94997C8.02702 9.87297 7.4375 11.0798 7.4375 12.25C7.4375 12.4916 7.24162 12.6875 7 12.6875C6.75838 12.6875 6.5625 12.4916 6.5625 12.25C6.5625 11.0798 5.97298 9.87297 5.05002 8.94997C4.12704 8.02702 2.92021 7.4375 1.75 7.4375C1.50838 7.4375 1.3125 7.24162 1.3125 7C1.3125 6.75838 1.50838 6.5625 1.75 6.5625C2.92021 6.5625 4.12704 5.97298 5.05002 5.05002C5.97298 4.12704 6.5625 2.92021 6.5625 1.75C6.5625 1.50838 6.75838 1.3125 7 1.3125Z" fill="#A48AFB"/>
+                              <path d="M11.2292 0.728516C11.3537 0.728516 11.4616 0.814814 11.489 0.936299L11.6256 1.54285C11.7189 1.95702 12.0423 2.28046 12.4565 2.37375L13.0631 2.51039C13.1846 2.53775 13.2708 2.64565 13.2708 2.77018C13.2708 2.89471 13.1846 3.00261 13.0631 3.02998L12.4565 3.16661C12.0423 3.25991 11.7189 3.58334 11.6256 3.9975L11.489 4.60407C11.4616 4.72555 11.3537 4.81185 11.2292 4.81185C11.1046 4.81185 10.9968 4.72555 10.9693 4.60407L10.8327 3.9975C10.7395 3.58334 10.416 3.25991 10.0018 3.16661L9.39528 3.02998C9.27377 3.00261 9.1875 2.89471 9.1875 2.77018C9.1875 2.64565 9.27377 2.53775 9.39528 2.51039L10.0018 2.37375C10.416 2.28046 10.7395 1.95703 10.8327 1.54285L10.9693 0.936299C10.9968 0.814814 11.1046 0.728516 11.2292 0.728516Z" fill="#A48AFB"/>
+                              <path d="M2.77116 9.1875C2.89569 9.1875 3.00359 9.27377 3.03095 9.39528L3.16759 10.0018C3.26089 10.416 3.58431 10.7395 3.99848 10.8327L4.60504 10.9693C4.72653 10.9968 4.81283 11.1046 4.81283 11.2292C4.81283 11.3537 4.72653 11.4616 4.60504 11.489L3.99848 11.6256C3.58431 11.7189 3.26089 12.0423 3.16759 12.4565L3.03095 13.0631C3.00359 13.1846 2.89569 13.2708 2.77116 13.2708C2.64663 13.2708 2.53873 13.1846 2.51137 13.0631L2.37473 12.4565C2.28143 12.0423 1.958 11.7189 1.54383 11.6256L0.937276 11.489C0.815791 11.4616 0.729492 11.3537 0.729492 11.2292C0.729492 11.1046 0.815791 10.9968 0.937276 10.9693L1.54383 10.8327C1.958 10.7395 2.28143 10.416 2.37473 10.0018L2.51137 9.39528C2.53873 9.27377 2.64663 9.1875 2.77116 9.1875Z" fill="#A48AFB"/>
+                            </g>
+                            <defs>
+                              <clipPath id="clip0_3448_30823">
+                                <rect width="14" height="14" fill="white"/>
+                              </clipPath>
+                            </defs>
+                          </svg>
+                          {candidate.description}
+                          {candidate.highlights && candidate.highlights.length > 0 && (
+                            <span style={{ marginLeft: '8px' }}>
+                              {candidate.highlights.map((skill: string, index: number) => (
+                                <span 
+                                  key={index}
+                                  style={{ 
+                                    color: '#FFF',
+                                    fontWeight: 600,
+                                    background: 'rgba(139, 92, 246, 0.1)',
+                                    padding: '2px 4px',
+                                    borderRadius: '4px',
+                                    marginRight: '4px'
+                                  }}
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </span>
                           )}
                         </p>
                       </div>
@@ -549,13 +637,533 @@ const Listing = () => {
                   ))
                   ) : (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#A0A0AB' }}>
-                      <p>No candidates found. Create a profile to get started.</p>
+                      {searchQuery ? (
+                        <p>No candidates found matching &ldquo;{searchQuery}&rdquo;. Try a different search query.</p>
+                      ) : (
+                        <p>No candidates found. Create a profile to get started.</p>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
-             
+              </div>
+
+      {/* Detail Profile Panel */}
+      {selectedCandidate && (
+        <aside
+          style={{
+            display: 'flex',
+            minWidth: '287px',
+            maxWidth: '500px',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            flex: '1 0 0',
+            borderRadius: '0',
+            background: '#161619',
+            borderLeft: '1px solid #26272B',
+            height: '100vh',
+            position: 'sticky',
+            top: 0,
+            overflow: 'hidden'
+          }}
+        >
+          {/* Fixed Header Section */}
+          <div
+        className=''
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+           
+            width: '100%',
+            background: '#161718',
+            borderBottom: '1px solid #26272B',
+            padding : '16px',
+            flexShrink: 0
+          }}>
+            {/* Top row: Close button and navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <button
+                onClick={() => setSelectedCandidate(null)}
+                style={{
+                  display: 'flex',
+                  padding: '6px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: '8px',
+                  border: '0.5px solid #26272B',
+                  background: '#1A1A1E',
+                  cursor: 'pointer'
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M13.5 4.5L4.50061 13.4994M13.4994 13.5L4.5 4.50064" stroke="#A48AFB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
               
+              {/* Navigation arrows */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button style={{
+                  display: 'flex',
+                  padding: '6px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: '8px',
+                  border: '0.5px solid #26272B',
+                  background: '#1A1A1E',
+                  cursor: 'pointer'
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M15.5625 12.3125C15.7006 12.3125 15.8125 12.4245 15.8125 12.5625C15.8125 13.2409 15.815 13.6334 15.7275 13.96C15.4963 14.8224 14.8223 15.4953 13.96 15.7266C13.6334 15.8141 13.241 15.8125 12.5625 15.8125H5.4375C4.75921 15.8125 4.36749 15.814 4.04102 15.7266C3.17849 15.4955 2.50474 14.8225 2.27344 13.96C2.18594 13.6334 2.1875 13.241 2.1875 12.5625C2.1875 12.4245 2.29949 12.3125 2.4375 12.3125C2.57555 12.3125 2.6875 12.4245 2.6875 12.5625C2.6875 13.2726 2.68968 13.5831 2.75586 13.8301C2.94078 14.5202 3.47973 15.0592 4.16992 15.2441C4.41685 15.3102 4.72747 15.3125 5.4375 15.3125H12.5645L13.0332 15.3115H13.0361C13.4134 15.3077 13.6344 15.2966 13.8301 15.2441C14.5202 15.0592 15.0592 14.5203 15.2441 13.8301C15.3104 13.583 15.3125 13.2725 15.3125 12.5625C15.3125 12.4245 15.4245 12.3125 15.5625 12.3125Z" fill="#A48AFB" stroke="#A48AFB"/>
+                    <path d="M9.00009 1.6875C8.58587 1.6875 8.25009 2.02328 8.25009 2.4375V10.3946C8.02202 10.1657 7.78074 9.90451 7.54547 9.63353C7.19064 9.22486 6.86099 8.81356 6.61898 8.50343C6.49828 8.34878 6.297 8.08253 6.22933 7.99291C5.98376 7.65946 5.51401 7.58783 5.1805 7.83323C4.84707 8.07878 4.77545 8.54858 5.02083 8.88211C5.09256 8.97706 5.3099 9.26453 5.43611 9.42623C5.68788 9.74888 6.03488 10.1816 6.41243 10.6165C6.78686 11.0477 7.20656 11.4983 7.60119 11.8469C7.79762 12.0205 8.00567 12.185 8.21274 12.3098C8.39927 12.4223 8.68014 12.5625 9.00009 12.5625C9.32004 12.5625 9.60092 12.4223 9.78744 12.3098C9.99452 12.185 10.2026 12.0205 10.399 11.8469C10.7936 11.4983 11.2133 11.0477 11.5877 10.6165C11.9653 10.1816 12.3122 9.74888 12.564 9.42623C12.6902 9.26453 12.9076 8.97706 12.9793 8.88211C13.2247 8.54858 13.1531 8.07953 12.8197 7.83398C12.4862 7.58836 12.0164 7.65938 11.7708 7.99291C11.7032 8.08253 11.5019 8.34878 11.3812 8.50343C11.1392 8.81348 10.8095 9.22486 10.4546 9.63353C10.2194 9.90443 9.97817 10.1657 9.75009 10.3946V2.4375C9.75009 2.02329 9.41432 1.68752 9.00009 1.6875Z" fill="#A48AFB"/>
+                  </svg>
+                </button>
+                <button style={{
+                  display: 'flex',
+                  padding: '6px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: '8px',
+                  border: '0.5px solid #26272B',
+                  background: '#1A1A1E',
+                  cursor: 'pointer'
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M12 14L6 9L12 4" stroke="#70707B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <button style={{
+                  display: 'flex',
+                  padding: '6px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: '8px',
+                  border: '0.5px solid #26272B',
+                  background: '#1A1A1E',
+                  cursor: 'pointer'
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M6 14L12 9L6 4" stroke="#875BF7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Profile name and social icons row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{
+                  color: '#FFF',
+                  fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  lineHeight: '28px',
+                  margin: 0
+                }}>
+                  {selectedCandidate.name}
+                </h2>
+                {/* Social Icons */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {socialIcons.map((icon) => (
+                    <button
+                      key={icon.name}
+                      style={{
+                        display: 'flex',
+                        padding: '4px',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderRadius: '6px',
+                        border: '0.5px solid #3F3F46',
+                        background: '#1A1A1E',
+                        cursor: 'pointer'
+                      }}
+                      dangerouslySetInnerHTML={{ __html: icon.svg }}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Full Profile Button */}
+              <button
+                style={{
+                  display: 'flex',
+                  padding: '8px 12px',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderRadius: '8px',
+                  background: '#875BF7',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <span style={{
+                  color: '#FFF',
+                  fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+                  fontSize: '13px',
+                  fontWeight: 500
+                }}>Full Profile</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M5.25 10.5L8.75 7L5.25 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Location */}
+            <p style={{
+              color: '#A0A0AB',
+              fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+              fontSize: '14px',
+              fontWeight: 400,
+              lineHeight: '20px',
+              margin: 0
+            }}>
+              {selectedCandidate.location}
+            </p>
+
+            {/* Tabs */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '0',
+              width: '100%'
+            }}>
+              {['Overview', 'Experience', 'Education', 'Skill'].map((tab, index) => (
+                <button
+                  key={tab}
+                  style={{
+                    padding: '8px 16px',
+                    background: index === 0 ? '#26272B' : 'transparent',
+                    border: 'none',
+                    borderRadius: index === 0 ? '8px' : '0',
+                    color: index === 0 ? '#FFF' : '#70707B',
+                    fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scrollable Content Section */}
+          <div 
+            className="hide-scrollbar"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              padding: '16px',
+              width: '100%',
+              overflowY: 'auto',
+              flex: 1,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
+          {/* Manage Profile Section */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '12px', 
+            width: '100%',
+            padding: '16px',
+            background: '#131316',
+            borderRadius: '12px'
+          }}>
+            <p style={{
+              color: '#70707B',
+              fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+              fontSize: '12px',
+              fontWeight: 500,
+              margin: 0
+            }}>Manage profile</p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button style={{
+                display: 'flex',
+                padding: '8px 16px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '8px',
+                borderRadius: '8px',
+                background: '#875BF7',
+                border: 'none',
+                cursor: 'pointer',
+                flex: 1
+              }}>
+                <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>Shortlist</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1L10.163 5.27865L15 6.03688L11.5 9.35983L12.326 14L8 11.7787L3.674 14L4.5 9.35983L1 6.03688L5.837 5.27865L8 1Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+              <button style={{
+                display: 'flex',
+                padding: '8px 16px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '8px',
+                borderRadius: '8px',
+                background: '#26272B',
+                border: '0.5px solid #3F3F46',
+                cursor: 'pointer',
+                flex: 1
+              }}>
+                <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>Bookmark</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 12.4317V6.47169C3 4.04944 3 2.83831 3.78104 2.08631C4.56209 1.3343 5.81905 1.3343 8.33297 1.3343C10.8469 1.3343 12.1039 1.3343 12.8849 2.08631C13.666 2.83831 13.666 4.04944 13.666 6.47169V12.4317C13.666 13.9689 13.666 14.7375 13.1515 15.0125C12.1537 15.545 10.2821 13.7679 9.39442 13.2326C8.87897 12.9223 8.62124 12.7671 8.33297 12.7671C8.0447 12.7671 7.78697 12.9223 7.27152 13.2326C6.38386 13.7679 4.51232 15.545 3.51446 15.0125C3 14.7375 3 13.9689 3 12.4317Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Work Experience Section */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '16px', 
+            width: '100%'
+          }}>
+            <h3 style={{
+              color: '#FFF',
+              fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+              fontSize: '14px',
+              fontWeight: 600,
+              margin: 0
+            }}>Work experience</h3>
+
+            {/* Experience Stats */}
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ color: '#70707B', fontSize: '12px' }}>Average tenure</span>
+                <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>
+                  {selectedCandidate.workExperience?.[0]?.duration || '3 yrs 1 mos'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ color: '#70707B', fontSize: '12px' }}>Current tenure</span>
+                <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>
+                  {selectedCandidate.currentTenure || '7 yrs 2 mos'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ color: '#70707B', fontSize: '12px' }}>Total experience</span>
+                <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>
+                  {selectedCandidate.totalExperience || '24 yrs 8 mos'}
+                </span>
+              </div>
+            </div>
+
+            {/* Experience Item */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px',
+              padding: '12px',
+              background: '#131316',
+              borderRadius: '12px'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                background: '#26272B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <span style={{ color: '#875BF7', fontSize: '16px', fontWeight: 600 }}>
+                  {selectedCandidate.company?.charAt(0) || 'C'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedCandidate.position || 'Lead Product Designer'}
+                  </span>
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: '#172820',
+                    border: '0.5px solid #315F45',
+                    color: '#CAF7DA',
+                    fontSize: '12px'
+                  }}>Promoted</span>
+                </div>
+                <span style={{ color: '#A0A0AB', fontSize: '13px' }}>
+                  {selectedCandidate.company || 'Company'}
+                </span>
+                <span style={{ color: '#70707B', fontSize: '12px' }}>
+                  May 2020 - Present
+                </span>
+                <p style={{ 
+                  color: '#9CA3AF', 
+                  fontSize: '13px', 
+                  lineHeight: '20px',
+                  margin: '8px 0 0 0'
+                }}>
+                  {selectedCandidate.description?.slice(0, 150) || 'Designing tailored user experiences for high-net-worth clients in the financial sector, enhancing int...'}
+                  {selectedCandidate.description?.length > 150 && (
+                    <button style={{
+                      color: '#875BF7',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      marginLeft: '4px'
+                    }}>Show more</button>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Education Section */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '12px', 
+            width: '100%'
+          }}>
+            <h3 style={{
+              color: '#FFF',
+              fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+              fontSize: '14px',
+              fontWeight: 600,
+              margin: 0
+            }}>Education</h3>
+
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px',
+              padding: '12px',
+              background: '#131316',
+              borderRadius: '12px'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                background: '#26272B',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <span style={{ color: '#875BF7', fontSize: '16px', fontWeight: 600 }}>U</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 500 }}>
+                  {selectedCandidate.education || 'University'}
+                </span>
+                <span style={{ color: '#A0A0AB', fontSize: '13px' }}>
+                  Bachelor&apos;s Degree
+                </span>
+                <span style={{ color: '#70707B', fontSize: '12px' }}>
+                  Nov 2016 - May 2018
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Skills Section */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '12px', 
+            width: '100%'
+          }}>
+            <h3 style={{
+              color: '#FFF',
+              fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+              fontSize: '14px',
+              fontWeight: 600,
+              margin: 0
+            }}>Skills</h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ color: '#70707B', fontSize: '12px' }}>Front-end</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {(selectedCandidate.highlights || ['Wireframing', 'User Research', 'Prototyping', 'Usability Testing']).slice(0, 6).map((skill: string, index: number) => (
+                  <span
+                    key={index}
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      background: index < 2 ? '#26272B' : '#2D1F54',
+                      border: index < 2 ? '0.5px solid #3F3F46' : '0.5px solid #5B21B6',
+                      color: index < 2 ? '#FFF' : '#C4B5FD',
+                      fontSize: '12px',
+                      fontWeight: 500
+                    }}
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ color: '#70707B', fontSize: '12px' }}>Additional Skills</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {['Prototyping', 'User Research', 'Usability Testing', 'Information Architecture', 'A/B Testing', 'Visual Design'].map((skill, index) => (
+                  <span
+                    key={index}
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      background: '#26272B',
+                      border: '0.5px solid #3F3F46',
+                      color: '#FFF',
+                      fontSize: '12px',
+                      fontWeight: 500
+                    }}
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Languages Section */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '12px', 
+            width: '100%'
+          }}>
+            <h3 style={{
+              color: '#FFF',
+              fontFamily: "var(--Font-family-font-family-text, 'Inter Display')",
+              fontSize: '14px',
+              fontWeight: 600,
+              margin: 0
+            }}>Language</h3>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {['Telugu', 'Hindi', 'English'].map((lang, index) => (
+                <span
+                  key={index}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    background: '#26272B',
+                    border: '0.5px solid #3F3F46',
+                    color: '#FFF',
+                    fontSize: '12px',
+                    fontWeight: 500
+                  }}
+                >
+                  {lang}
+                </span>
+              ))}
+            </div>
+          </div>
+          </div>
+        </aside>
+      )}
             </main>
 
       </div>

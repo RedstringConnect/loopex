@@ -90,6 +90,7 @@ function VerifyEmailContent() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ email, otp: otpCode }),
       })
 
@@ -97,8 +98,7 @@ function VerifyEmailContent() {
 
       if (data.success) {
         setVerificationStatus('success')
-        // Store token and user data
-        localStorage.setItem('authToken', data.token)
+        // Store user data (token is now in HTTP-only cookie)
         if (data.user) {
           localStorage.setItem('userId', data.user.userId)
           localStorage.setItem('userEmail', data.user.email)
@@ -137,6 +137,7 @@ function VerifyEmailContent() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ email }),
       })
 

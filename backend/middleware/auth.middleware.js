@@ -6,17 +6,23 @@ const User = require('../models/User.model');
  */
 const authenticate = async (req, res, next) => {
     try {
-        // Get token from header
-        const authHeader = req.headers.authorization;
+        // Get token from cookie first, then fall back to header
+        let token = req.cookies?.authToken;
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Fall back to Authorization header for API clients
+        if (!token) {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+            }
+        }
+
+        if (!token) {
             return res.status(401).json({
                 success: false,
                 message: 'No token provided',
             });
         }
-
-        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
         // Verify token
         const decoded = verifyToken(token);

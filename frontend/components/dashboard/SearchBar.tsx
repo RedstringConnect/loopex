@@ -9,14 +9,27 @@ interface SearchBarProps {
   setSearchInput: (value: string) => void
   onFilterClick: () => void
   onUploadJDClick: () => void
+  onSearch?: (query: string) => void
 }
 
 export default function SearchBar({
   searchInput,
   setSearchInput,
   onFilterClick,
-  onUploadJDClick
+  onUploadJDClick,
+  onSearch
 }: SearchBarProps) {
+  const handleSearch = () => {
+    if (searchInput.trim() && onSearch) {
+      onSearch(searchInput.trim())
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchInput.trim() && onSearch) {
+      onSearch(searchInput.trim())
+    }
+  }
   const detectedCategories = useMemo(() => detectCategories(searchInput), [searchInput])
   const borderColor = useMemo(() => getBorderColor(searchInput), [searchInput])
 
@@ -34,6 +47,7 @@ export default function SearchBar({
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="border-none bg-transparent font-body text-[14px] text-white"
             placeholder="Ask loopx for UX Designer in Mumbai with 2+ years experience at top consulting firms"
           />
@@ -90,6 +104,7 @@ export default function SearchBar({
             </button>
 
             <button
+              onClick={handleSearch}
               className="flex items-center justify-center font-body"
               style={{
                 padding: '6px 8px',

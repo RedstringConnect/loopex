@@ -1,11 +1,18 @@
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const MAGIC_LINK_EXPIRY = process.env.MAGIC_LINK_EXPIRY || '15m';
+const TOKEN_EXPIRY = process.env.TOKEN_EXPIRY || '7d';
 
 const jwtConfig = {
     secret: JWT_SECRET,
-    expiresIn: MAGIC_LINK_EXPIRY,
+    expiresIn: TOKEN_EXPIRY,
+    cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        path: '/',
+    }
 };
 
 module.exports = jwtConfig;

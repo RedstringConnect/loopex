@@ -31,10 +31,9 @@ export default function Onboarding() {
 
   // Check if user is authenticated and hasn't completed onboarding
   useEffect(() => {
-    const token = localStorage.getItem('authToken')
     const userId = localStorage.getItem('userId')
     
-    if (!token || !userId) {
+    if (!userId) {
       // Not authenticated, redirect to auth
       router.push('/auth')
       return
@@ -44,9 +43,7 @@ export default function Onboarding() {
     const checkOnboardingStatus = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/onboarding/status/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include'
         })
         const data = await response.json()
         
@@ -531,6 +528,7 @@ export default function Onboarding() {
               headers: {
                 'Content-Type': 'application/json',
               },
+              credentials: 'include',
               body: JSON.stringify({
                 userId,
                 email: userEmail,

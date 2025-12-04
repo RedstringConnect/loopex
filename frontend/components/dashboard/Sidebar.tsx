@@ -56,6 +56,8 @@ interface SidebarProps {
   userProjects: string[]
   onNewProject: () => void
   onProjectSelect: (project: string) => void
+  showProjectsDropdown: boolean
+  onShowProjectsDropdownChange: (show: boolean) => void
 }
 
 export default function Sidebar({
@@ -64,13 +66,14 @@ export default function Sidebar({
   selectedProject,
   userProjects,
   onNewProject,
-  onProjectSelect
+  onProjectSelect,
+  showProjectsDropdown,
+  onShowProjectsDropdownChange
 }: SidebarProps) {
-  const [showProjectsDropdown, setShowProjectsDropdown] = useState(false)
   const [projectSearchInput, setProjectSearchInput] = useState('')
 
   return (
-    <aside className={`fixed left-0 top-0 bg-[#1A1A1E] w-[220px]  h-screen flex flex-col justify-between transition-all duration-300 overflow-y-auto overflow-x-hidden z-10 ${showModal || showFilterModal ? 'blur-[2px]' : ''}`} style={{ padding: '12px 16px' }}>
+    <aside className={`fixed left-0 top-0 bg-[#1A1A1E] w-[220px] h-screen flex flex-col justify-between transition-all duration-300  z-10 ${showModal || showFilterModal ? 'blur-[2px]' : ''}`} style={{ padding: '12px 16px'}}>
       <div>
         <div className="text-white text-2xl mb-[20px]" style={{ fontFamily: 'var(--font-heading)' }}>
           Loopx
@@ -94,9 +97,9 @@ export default function Sidebar({
                 <span>All Projects</span>
               </button>
               {selectedProject && (
-                <div className="relative">
+                <div className="relative z-50">
                   <button
-                    onClick={() => setShowProjectsDropdown(!showProjectsDropdown)}
+                    onClick={() => onShowProjectsDropdownChange(!showProjectsDropdown)}
                     className="w-full text-left px-4 py-2 flex items-center gap-3 text-[14px] transition text-[#a48afb] border rounded-lg border-[#26272b]"
                   >
                     <span style={{ color: '#A48AFB' }}>{projectIcon}</span>
@@ -112,14 +115,17 @@ export default function Sidebar({
 
                   {showProjectsDropdown && (
                     <div 
-                      className="absolute  left-0 mt-2 border z-50"
+                      className="absolute left-0 -top-2 border z-50"
                       style={{
                         backgroundColor: '#131316',
                         borderColor: '#26272B',
                         borderRadius: '24px',
                         borderWidth: '1px',
-                        width: '300px',
-                        padding: '16px'
+                        width: '320px',
+                        padding: '16px',
+                       
+                        marginTop: '50px',
+                        boxShadow: '0 20px 45px rgba(0,0,0,0.4)'
                       }}
                     >
                       <div className="mb-1">
@@ -170,7 +176,7 @@ export default function Sidebar({
                                 key={index}
                                 onClick={() => {
                                   onProjectSelect(project)
-                                  setShowProjectsDropdown(false)
+                                  onShowProjectsDropdownChange(false)
                                   setProjectSearchInput('')
                                 }}
                                 className="w-full text-left px-3 py-2.5 rounded-lg transition-all duration-200 flex items-center gap-3 mb-1"
@@ -201,7 +207,7 @@ export default function Sidebar({
                         <div className="pt-2 border-t" style={{ borderColor: '#26272B' }}>
                           <button
                             onClick={() => {
-                              setShowProjectsDropdown(false)
+                              onShowProjectsDropdownChange(false)
                               onNewProject()
                               setProjectSearchInput('')
                             }}

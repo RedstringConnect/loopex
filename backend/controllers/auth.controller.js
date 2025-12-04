@@ -2,6 +2,7 @@ const { generateToken } = require('../utils/jwt.util');
 const bcrypt = require('bcryptjs');
 const { sendOTPEmail } = require('../utils/mailer.util');
 const User = require('../models/User.model');
+const jwtConfig = require('../config/jwt.config');
 
 /**
  * Sign up - Create account with email and password, send OTP
@@ -207,6 +208,9 @@ const verifyOTPCode = async (req, res) => {
         // Generate JWT token for session
         const token = generateToken({ userId: user._id, email: user.email });
 
+        // Set token in HTTP-only cookie
+        res.cookie('authToken', token, jwtConfig.cookieOptions);
+
         res.status(200).json({
             success: true,
             message: 'Email verified successfully',
@@ -273,6 +277,9 @@ const login = async (req, res) => {
         // Generate JWT token
         const token = generateToken({ userId: user._id, email: user.email });
 
+        // Set token in HTTP-only cookie
+        res.cookie('authToken', token, jwtConfig.cookieOptions);
+
         res.status(200).json({
             success: true,
             message: 'Login successful',
@@ -294,9 +301,36 @@ const login = async (req, res) => {
     }
 };
 
+/**
+ * Logout - Clear auth cookie
+ */
+const logout = async (req, res) => {
+    try {
+        res.clearCookie('authToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Logged out successfully',
+        });
+    } catch (error) {
+        console.error('Error during logout:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Logout failed',
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     signup,
     resendOTP,
     verifyOTPCode,
     login,
+    logout,
 };
